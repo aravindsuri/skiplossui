@@ -32,8 +32,6 @@ interface Message {
   timestamp: Date;
 }
 
-// Removed unused ChatConfig interface
-
 interface AIInsight {
   id: string;
   type: 'prediction' | 'optimization' | 'alert' | 'recommendation';
@@ -56,18 +54,21 @@ interface AutoAction {
 
 interface SpeechRecognitionResult {
   [index: number]: {
-    [index: number]: {
-      transcript: string;
-    };
-    isFinal: boolean;
+    transcript: string;
+    confidence?: number;
   };
-  resultIndex: number;
-  results: SpeechRecognitionResult[];
+  isFinal: boolean;
+  length: number;
+}
+
+interface SpeechRecognitionResultList {
+  [index: number]: SpeechRecognitionResult;
+  length: number;
 }
 
 interface SpeechRecognitionEvent {
   resultIndex: number;
-  results: SpeechRecognitionResult[];
+  results: SpeechRecognitionResultList;
 }
 
 interface SpeechRecognitionErrorEvent {
@@ -132,86 +133,6 @@ const VehicleRepossessionApp: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const generateAIInsights = async () => {
-    setIsAiThinking(true);
-    
-    // Simulate AI analysis
-    setTimeout(() => {
-      const insights: AIInsight[] = [];
-      
-      if (vehicles.length > 0) {
-        // Predictive insights
-        insights.push({
-          id: 'pred-1',
-          type: 'prediction',
-          title: 'Recovery Time Prediction',
-          description: `Based on location patterns, ${vehicles[0]?.Make} ${vehicles[0]?.Model} in ${vehicles[0]?.Country} has 85% chance of recovery within 72 hours.`,
-          confidence: 85,
-          impact: 'high',
-          action: 'Deploy agent immediately',
-          timestamp: new Date()
-        });
-
-        // Optimization recommendations
-        insights.push({
-          id: 'opt-1',
-          type: 'optimization',
-          title: 'Route Optimization',
-          description: `Detected ${vehicles.length} vehicles in same region. Recommend multi-vehicle recovery mission to reduce costs by 40%.`,
-          confidence: 92,
-          impact: 'medium',
-          action: 'Create batch assignment',
-          timestamp: new Date()
-        });
-
-        // Risk alerts
-        if (vehicles.length > 3) {
-          insights.push({
-            id: 'alert-1',
-            type: 'alert',
-            title: 'High Volume Alert',
-            description: `Unusual spike in skip loss cases detected in ${vehicles[0]?.Country}. May indicate systematic issue.`,
-            confidence: 78,
-            impact: 'high',
-            action: 'Investigate root cause',
-            timestamp: new Date()
-          });
-        }
-      }
-
-      if (agents.length > 0) {
-        insights.push({
-          id: 'rec-1',
-          type: 'recommendation',
-          title: 'Agent Performance Match',
-          description: `Agent ${agents[0]?.Name} has 94% success rate with ${vehicles[0]?.Make} vehicles. Optimal assignment detected.`,
-          confidence: 94,
-          impact: 'medium',
-          timestamp: new Date()
-        });
-      }
-
-      setAiInsights(insights);
-      setIsAiThinking(false);
-    }, 2000);
-  };
-
-  const runProactiveAnalysis = () => {
-    // Simulate real-time monitoring
-    const newInsight: AIInsight = {
-      id: `proactive-${Date.now()}`,
-      type: 'alert',
-      title: 'Real-time Update',
-      description: `Vehicle ${vehicles[0]?.VIN.slice(-6)} location updated. Moving towards highway - recommend immediate contact.`,
-      confidence: 87,
-      impact: 'high',
-      action: 'Contact agent now',
-      timestamp: new Date()
-    };
-
-    setAiInsights(prev => [newInsight, ...prev.slice(0, 4)]);
-  };
-
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
@@ -230,13 +151,93 @@ const VehicleRepossessionApp: React.FC = () => {
 
   // AI Agent - Generate insights when data changes
   useEffect(() => {
+    const generateAIInsights = () => {
+      setIsAiThinking(true);
+      
+      // Simulate AI analysis
+      setTimeout(() => {
+        const insights: AIInsight[] = [];
+        
+        if (vehicles.length > 0) {
+          // Predictive insights
+          insights.push({
+            id: 'pred-1',
+            type: 'prediction',
+            title: 'Recovery Time Prediction',
+            description: `Based on location patterns, ${vehicles[0]?.Make} ${vehicles[0]?.Model} in ${vehicles[0]?.Country} has 85% chance of recovery within 72 hours.`,
+            confidence: 85,
+            impact: 'high',
+            action: 'Deploy agent immediately',
+            timestamp: new Date()
+          });
+
+          // Optimization recommendations
+          insights.push({
+            id: 'opt-1',
+            type: 'optimization',
+            title: 'Route Optimization',
+            description: `Detected ${vehicles.length} vehicles in same region. Recommend multi-vehicle recovery mission to reduce costs by 40%.`,
+            confidence: 92,
+            impact: 'medium',
+            action: 'Create batch assignment',
+            timestamp: new Date()
+          });
+
+          // Risk alerts
+          if (vehicles.length > 3) {
+            insights.push({
+              id: 'alert-1',
+              type: 'alert',
+              title: 'High Volume Alert',
+              description: `Unusual spike in skip loss cases detected in ${vehicles[0]?.Country}. May indicate systematic issue.`,
+              confidence: 78,
+              impact: 'high',
+              action: 'Investigate root cause',
+              timestamp: new Date()
+            });
+          }
+        }
+
+        if (agents.length > 0) {
+          insights.push({
+            id: 'rec-1',
+            type: 'recommendation',
+            title: 'Agent Performance Match',
+            description: `Agent ${agents[0]?.Name} has 94% success rate with ${vehicles[0]?.Make} vehicles. Optimal assignment detected.`,
+            confidence: 94,
+            impact: 'medium',
+            timestamp: new Date()
+          });
+        }
+
+        setAiInsights(insights);
+        setIsAiThinking(false);
+      }, 2000);
+    };
+
     if (vehicles.length > 0 || agents.length > 0) {
       generateAIInsights();
     }
-  }, [vehicles, agents, generateAIInsights]);
+  }, [vehicles, agents]);
 
   // AI Agent - Proactive monitoring
   useEffect(() => {
+    const runProactiveAnalysis = () => {
+      // Simulate real-time monitoring
+      const newInsight: AIInsight = {
+        id: `proactive-${Date.now()}`,
+        type: 'alert',
+        title: 'Real-time Update',
+        description: `Vehicle ${vehicles[0]?.VIN.slice(-6)} location updated. Moving towards highway - recommend immediate contact.`,
+        confidence: 87,
+        impact: 'high',
+        action: 'Contact agent now',
+        timestamp: new Date()
+      };
+
+      setAiInsights(prev => [newInsight, ...prev.slice(0, 4)]);
+    };
+
     if (proactiveMode) {
       const interval = setInterval(() => {
         if (vehicles.length > 0) {
@@ -246,7 +247,7 @@ const VehicleRepossessionApp: React.FC = () => {
 
       return () => clearInterval(interval);
     }
-  }, [proactiveMode, vehicles, runProactiveAnalysis]);
+  }, [proactiveMode, vehicles]);
 
   // Initialize speech recognition
   useEffect(() => {
@@ -283,10 +284,11 @@ const VehicleRepossessionApp: React.FC = () => {
           let interim = '';
           
           for (let i = event.resultIndex; i < event.results.length; i++) {
-            const transcript = event.results[i][0].transcript;
-            console.log('Transcript part:', transcript, 'Final:', event.results[i].isFinal);
+            const result = event.results[i];
+            const transcript = result[0].transcript;
+            console.log('Transcript part:', transcript, 'Final:', result.isFinal);
             
-            if (event.results[i].isFinal) {
+            if (result.isFinal) {
               finalTranscript += transcript;
             } else {
               interim += transcript;

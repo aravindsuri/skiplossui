@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Truck, Users, Mail, MapPin, Phone, Star, Loader2, Settings, Video, MoreHorizontal, Plus, Search, Bell, Grid3X3, ChevronDown, Trash2, Mic, MicOff, Volume2, VolumeX, Zap, Brain, TrendingUp, Calendar, AlertTriangle, Target, BarChart3, Clock, Shield } from 'lucide-react';
+import { Send, Truck, Users, Mail, MapPin, Phone, Star, Loader2, Settings, Video, MoreHorizontal, Plus, Search, Bell, Grid3X3, Trash2, Mic, MicOff, Volume2, VolumeX, Zap, Brain, TrendingUp, AlertTriangle, Target } from 'lucide-react';
 
 // Types
 interface Vehicle {
@@ -59,6 +59,51 @@ interface AutoAction {
   result?: string;
 }
 
+interface SpeechRecognitionResult {
+  [index: number]: {
+    [index: number]: {
+      transcript: string;
+    };
+    isFinal: boolean;
+  };
+  resultIndex: number;
+  results: SpeechRecognitionResult[];
+}
+
+interface SpeechRecognitionEvent {
+  resultIndex: number;
+  results: SpeechRecognitionResult[];
+}
+
+interface SpeechRecognitionErrorEvent {
+  error: string;
+}
+
+interface SpeechRecognition {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  maxAlternatives: number;
+  onstart: () => void;
+  onend: () => void;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onerror: (event: SpeechRecognitionErrorEvent) => void;
+  onnomatch: () => void;
+  onspeechstart: () => void;
+  onspeechend: () => void;
+  start: () => void;
+  stop: () => void;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition: new () => SpeechRecognition;
+    webkitSpeechRecognition: new () => SpeechRecognition;
+    mozSpeechRecognition: new () => SpeechRecognition;
+    msSpeechRecognition: new () => SpeechRecognition;
+  }
+}
+
 const VehicleRepossessionApp: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -72,7 +117,7 @@ const VehicleRepossessionApp: React.FC = () => {
   const [emailTemplate, setEmailTemplate] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [speechEnabled, setSpeechEnabled] = useState(true);
-  const [recognition, setRecognition] = useState<any>(null);
+  const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
   const [interimTranscript, setInterimTranscript] = useState('');
   const [aiInsights, setAiInsights] = useState<AIInsight[]>([]);
   const [autoActions, setAutoActions] = useState<AutoAction[]>([]);
@@ -84,12 +129,92 @@ const VehicleRepossessionApp: React.FC = () => {
   const azureConfig = {
     openaiKey: process.env.NEXT_PUBLIC_AZURE_OPENAI_KEY || '',
     endpoint: process.env.NEXT_PUBLIC_AZURE_OPENAI_ENDPOINT || '',
-    deploymentName: process.env.NEXT_PUBLIC_AZURE_OPENAI_DEPLOYMENT || 'gpt-4.1-mini',
+    deploymentName: process.env.NEXT_PUBLIC_AZURE_OPENAI_DEPLOYMENT || 'gpt-4o-mini',
     apiVersion: process.env.NEXT_PUBLIC_AZURE_OPENAI_API_VERSION || '2024-08-01-preview'
   };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const generateAIInsights = async () => {
+    setIsAiThinking(true);
+    
+    // Simulate AI analysis
+    setTimeout(() => {
+      const insights: AIInsight[] = [];
+      
+      if (vehicles.length > 0) {
+        // Predictive insights
+        insights.push({
+          id: 'pred-1',
+          type: 'prediction',
+          title: 'Recovery Time Prediction',
+          description: `Based on location patterns, ${vehicles[0]?.Make} ${vehicles[0]?.Model} in ${vehicles[0]?.Country} has 85% chance of recovery within 72 hours.`,
+          confidence: 85,
+          impact: 'high',
+          action: 'Deploy agent immediately',
+          timestamp: new Date()
+        });
+
+        // Optimization recommendations
+        insights.push({
+          id: 'opt-1',
+          type: 'optimization',
+          title: 'Route Optimization',
+          description: `Detected ${vehicles.length} vehicles in same region. Recommend multi-vehicle recovery mission to reduce costs by 40%.`,
+          confidence: 92,
+          impact: 'medium',
+          action: 'Create batch assignment',
+          timestamp: new Date()
+        });
+
+        // Risk alerts
+        if (vehicles.length > 3) {
+          insights.push({
+            id: 'alert-1',
+            type: 'alert',
+            title: 'High Volume Alert',
+            description: `Unusual spike in skip loss cases detected in ${vehicles[0]?.Country}. May indicate systematic issue.`,
+            confidence: 78,
+            impact: 'high',
+            action: 'Investigate root cause',
+            timestamp: new Date()
+          });
+        }
+      }
+
+      if (agents.length > 0) {
+        insights.push({
+          id: 'rec-1',
+          type: 'recommendation',
+          title: 'Agent Performance Match',
+          description: `Agent ${agents[0]?.Name} has 94% success rate with ${vehicles[0]?.Make} vehicles. Optimal assignment detected.`,
+          confidence: 94,
+          impact: 'medium',
+          timestamp: new Date()
+        });
+      }
+
+      setAiInsights(insights);
+      setIsAiThinking(false);
+    }, 2000);
+  };
+
+  const runProactiveAnalysis = () => {
+    // Simulate real-time monitoring
+    const newInsight: AIInsight = {
+      id: `proactive-${Date.now()}`,
+      type: 'alert',
+      title: 'Real-time Update',
+      description: `Vehicle ${vehicles[0]?.VIN.slice(-6)} location updated. Moving towards highway - recommend immediate contact.`,
+      confidence: 87,
+      impact: 'high',
+      action: 'Contact agent now',
+      timestamp: new Date()
+    };
+
+    setAiInsights(prev => [newInsight, ...prev.slice(0, 4)]);
   };
 
   useEffect(() => {
@@ -106,14 +231,14 @@ const VehicleRepossessionApp: React.FC = () => {
     } else {
       console.log('Azure OpenAI configuration loaded successfully');
     }
-  }, []);
+  }, [azureConfig.endpoint, azureConfig.openaiKey]);
 
   // AI Agent - Generate insights when data changes
   useEffect(() => {
     if (vehicles.length > 0 || agents.length > 0) {
       generateAIInsights();
     }
-  }, [vehicles, agents]);
+  }, [vehicles, agents, generateAIInsights]);
 
   // AI Agent - Proactive monitoring
   useEffect(() => {
@@ -126,16 +251,16 @@ const VehicleRepossessionApp: React.FC = () => {
 
       return () => clearInterval(interval);
     }
-  }, [proactiveMode, vehicles]);
+  }, [proactiveMode, vehicles, runProactiveAnalysis]);
 
   // Initialize speech recognition
   useEffect(() => {
     if (typeof window !== 'undefined') {
       // Check for different browser implementations
-      const SpeechRecognition = (window as any).SpeechRecognition || 
-                               (window as any).webkitSpeechRecognition || 
-                               (window as any).mozSpeechRecognition || 
-                               (window as any).msSpeechRecognition;
+      const SpeechRecognition = window.SpeechRecognition || 
+                               window.webkitSpeechRecognition || 
+                               window.mozSpeechRecognition || 
+                               window.msSpeechRecognition;
       
       if (SpeechRecognition) {
         const recognitionInstance = new SpeechRecognition();
@@ -157,7 +282,7 @@ const VehicleRepossessionApp: React.FC = () => {
           setInterimTranscript('');
         };
         
-        recognitionInstance.onresult = (event: any) => {
+        recognitionInstance.onresult = (event: SpeechRecognitionEvent) => {
           console.log('Speech recognition result:', event);
           let finalTranscript = '';
           let interim = '';
@@ -187,7 +312,7 @@ const VehicleRepossessionApp: React.FC = () => {
           }
         };
         
-        recognitionInstance.onerror = (event: any) => {
+        recognitionInstance.onerror = (event: SpeechRecognitionErrorEvent) => {
           console.error('Speech recognition error:', event.error);
           setIsListening(false);
           setInterimTranscript('');
@@ -221,13 +346,6 @@ const VehicleRepossessionApp: React.FC = () => {
       }
     }
   }, []);
-
-  const saveConfig = (newConfig: ChatConfig) => {
-    // Environment variables cannot be changed at runtime
-    // This function is kept for UI compatibility but shows a message
-    alert('Configuration is loaded from environment variables. Please update your .env file and restart the application.');
-    setShowConfig(false);
-  };
 
   // Azure Function calls
   const callAzureFunction = async (endpoint: string, params: Record<string, string>) => {
@@ -405,7 +523,17 @@ The user interface will display formatted tables and additional features below y
         { role: 'user', content: input }
       ];
 
-      const response = await fetch(`${azureConfig.endpoint}/openai/deployments/${azureConfig.deploymentName}/chat/completions?api-version=${azureConfig.apiVersion}`, {
+      // Construct the URL more carefully
+      const baseUrl = azureConfig.endpoint.endsWith('/') 
+        ? azureConfig.endpoint.slice(0, -1) 
+        : azureConfig.endpoint;
+      
+      const apiUrl = `${baseUrl}/openai/deployments/${azureConfig.deploymentName}/chat/completions?api-version=${azureConfig.apiVersion}`;
+      
+      console.log('Making request to:', apiUrl); // Debug log
+      console.log('Using deployment:', azureConfig.deploymentName); // Debug log
+
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -419,8 +547,13 @@ The user interface will display formatted tables and additional features below y
         })
       });
 
+      console.log('Response status:', response.status); // Debug log
+      console.log('Response headers:', Object.fromEntries(response.headers.entries())); // Debug log
+
       if (!response.ok) {
-        throw new Error(`OpenAI API error: ${response.status}`);
+        const errorText = await response.text();
+        console.error('API Error Details:', errorText); // Debug log
+        throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
@@ -444,7 +577,7 @@ The user interface will display formatted tables and additional features below y
         }
 
         // Get final response
-        const finalResponse = await fetch(`${azureConfig.endpoint}/openai/deployments/${azureConfig.deploymentName}/chat/completions?api-version=${azureConfig.apiVersion}`, {
+        const finalResponse = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -455,6 +588,11 @@ The user interface will display formatted tables and additional features below y
             temperature: 0.1
           })
         });
+
+        if (!finalResponse.ok) {
+          const errorText = await finalResponse.text();
+          throw new Error(`OpenAI API error: ${finalResponse.status} - ${errorText}`);
+        }
 
         const finalData = await finalResponse.json();
         const finalMessage: Message = {
@@ -613,88 +751,7 @@ Daimler Truck Repossession Team`;
     }
   };
 
-  // AI Agent Functions
-  const generateAIInsights = async () => {
-    setIsAiThinking(true);
-    
-    // Simulate AI analysis
-    setTimeout(() => {
-      const insights: AIInsight[] = [];
-      
-      if (vehicles.length > 0) {
-        // Predictive insights
-        insights.push({
-          id: 'pred-1',
-          type: 'prediction',
-          title: 'Recovery Time Prediction',
-          description: `Based on location patterns, ${vehicles[0]?.Make} ${vehicles[0]?.Model} in ${vehicles[0]?.Country} has 85% chance of recovery within 72 hours.`,
-          confidence: 85,
-          impact: 'high',
-          action: 'Deploy agent immediately',
-          timestamp: new Date()
-        });
-
-        // Optimization recommendations
-        insights.push({
-          id: 'opt-1',
-          type: 'optimization',
-          title: 'Route Optimization',
-          description: `Detected ${vehicles.length} vehicles in same region. Recommend multi-vehicle recovery mission to reduce costs by 40%.`,
-          confidence: 92,
-          impact: 'medium',
-          action: 'Create batch assignment',
-          timestamp: new Date()
-        });
-
-        // Risk alerts
-        if (vehicles.length > 3) {
-          insights.push({
-            id: 'alert-1',
-            type: 'alert',
-            title: 'High Volume Alert',
-            description: `Unusual spike in skip loss cases detected in ${vehicles[0]?.Country}. May indicate systematic issue.`,
-            confidence: 78,
-            impact: 'high',
-            action: 'Investigate root cause',
-            timestamp: new Date()
-          });
-        }
-      }
-
-      if (agents.length > 0) {
-        insights.push({
-          id: 'rec-1',
-          type: 'recommendation',
-          title: 'Agent Performance Match',
-          description: `Agent ${agents[0]?.Name} has 94% success rate with ${vehicles[0]?.Make} vehicles. Optimal assignment detected.`,
-          confidence: 94,
-          impact: 'medium',
-          timestamp: new Date()
-        });
-      }
-
-      setAiInsights(insights);
-      setIsAiThinking(false);
-    }, 2000);
-  };
-
-  const runProactiveAnalysis = () => {
-    // Simulate real-time monitoring
-    const newInsight: AIInsight = {
-      id: `proactive-${Date.now()}`,
-      type: 'alert',
-      title: 'Real-time Update',
-      description: `Vehicle ${vehicles[0]?.VIN.slice(-6)} location updated. Moving towards highway - recommend immediate contact.`,
-      confidence: 87,
-      impact: 'high',
-      action: 'Contact agent now',
-      timestamp: new Date()
-    };
-
-    setAiInsights(prev => [newInsight, ...prev.slice(0, 4)]);
-  };
-
-  const executeAutoAction = async (action: string, insightId: string) => {
+  const executeAutoAction = async (action: string) => {
     const newAction: AutoAction = {
       id: `action-${Date.now()}`,
       name: action,
@@ -755,121 +812,6 @@ Daimler Truck Repossession Team`;
             <div className="w-8 h-8 bg-purple-600 rounded flex items-center justify-center">
               <Truck className="w-5 h-5 text-white" />
             </div>
-
-        {/* AI Insights Panel */}
-        {aiInsights.length > 0 && (
-          <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
-            <div className="border-b border-gray-200 p-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-                  <Brain className="w-5 h-5 text-purple-600" />
-                  <span>AI Insights</span>
-                </h2>
-                {isAiThinking && (
-                  <div className="flex items-center space-x-2 text-sm text-gray-500">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Analyzing...</span>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {aiInsights.map((insight) => (
-                <div key={insight.id} className={`p-4 rounded-lg border-l-4 ${
-                  insight.type === 'alert' ? 'border-red-500 bg-red-50' :
-                  insight.type === 'prediction' ? 'border-blue-500 bg-blue-50' :
-                  insight.type === 'optimization' ? 'border-green-500 bg-green-50' :
-                  'border-purple-500 bg-purple-50'
-                }`}>
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      {insight.type === 'alert' && <AlertTriangle className="w-4 h-4 text-red-600" />}
-                      {insight.type === 'prediction' && <TrendingUp className="w-4 h-4 text-blue-600" />}
-                      {insight.type === 'optimization' && <Target className="w-4 h-4 text-green-600" />}
-                      {insight.type === 'recommendation' && <Star className="w-4 h-4 text-purple-600" />}
-                      <span className={`text-xs font-medium uppercase tracking-wide ${
-                        insight.type === 'alert' ? 'text-red-600' :
-                        insight.type === 'prediction' ? 'text-blue-600' :
-                        insight.type === 'optimization' ? 'text-green-600' :
-                        'text-purple-600'
-                      }`}>
-                        {insight.type}
-                      </span>
-                    </div>
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      insight.impact === 'high' ? 'bg-red-100 text-red-700' :
-                      insight.impact === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-gray-100 text-gray-700'
-                    }`}>
-                      {insight.impact} impact
-                    </span>
-                  </div>
-                  
-                  <h3 className="font-semibold text-gray-900 mb-1">{insight.title}</h3>
-                  <p className="text-sm text-gray-600 mb-2">{insight.description}</p>
-                  
-                  <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-                    <span>Confidence: {insight.confidence}%</span>
-                    <span>{insight.timestamp.toLocaleTimeString()}</span>
-                  </div>
-                  
-                  {insight.action && (
-                    <button
-                      onClick={() => executeAutoAction(insight.action!, insight.id)}
-                      className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                        insight.type === 'alert' ? 'bg-red-600 text-white hover:bg-red-700' :
-                        insight.type === 'prediction' ? 'bg-blue-600 text-white hover:bg-blue-700' :
-                        insight.type === 'optimization' ? 'bg-green-600 text-white hover:bg-green-700' :
-                        'bg-purple-600 text-white hover:bg-purple-700'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-2">
-                        <Zap className="w-4 h-4" />
-                        <span>{insight.action}</span>
-                      </div>
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {/* Auto Actions Status */}
-            {autoActions.length > 0 && (
-              <div className="border-t border-gray-200 p-4">
-                <h3 className="text-sm font-semibold text-gray-900 mb-2">Automated Actions</h3>
-                <div className="space-y-2">
-                  {autoActions.slice(0, 3).map((action) => (
-                    <div key={action.id} className="p-2 bg-gray-50 rounded text-xs">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-medium">{action.name}</span>
-                        <span className={`px-2 py-1 rounded ${
-                          action.status === 'executing' ? 'bg-blue-100 text-blue-700' :
-                          action.status === 'completed' ? 'bg-green-100 text-green-700' :
-                          action.status === 'failed' ? 'bg-red-100 text-red-700' :
-                          'bg-gray-100 text-gray-700'
-                        }`}>
-                          {action.status}
-                        </span>
-                      </div>
-                      {action.status === 'executing' && (
-                        <div className="w-full bg-gray-200 rounded-full h-1.5">
-                          <div 
-                            className="bg-blue-600 h-1.5 rounded-full transition-all duration-500"
-                            style={{ width: `${action.progress}%` }}
-                          ></div>
-                        </div>
-                      )}
-                      {action.result && (
-                        <p className="text-gray-600 mt-1">{action.result}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
             <span className="font-semibold text-gray-900">Daimler Truck Operations</span>
           </div>
         </div>
@@ -926,10 +868,10 @@ Daimler Truck Repossession Team`;
               <div>
                 <h3 className="text-sm font-semibold text-gray-900 mb-2">Required Environment Variables:</h3>
                 <div className="bg-gray-100 rounded-md p-3 font-mono text-sm space-y-1">
-                  <div>REACT_APP_AZURE_OPENAI_KEY=your_api_key_here</div>
-                  <div>REACT_APP_AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com</div>
-                  <div>REACT_APP_AZURE_OPENAI_DEPLOYMENT=gpt-4</div>
-                  <div>REACT_APP_AZURE_OPENAI_API_VERSION=2024-02-01</div>
+                  <div>NEXT_PUBLIC_AZURE_OPENAI_KEY=your_api_key_here</div>
+                  <div>NEXT_PUBLIC_AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com</div>
+                  <div>NEXT_PUBLIC_AZURE_OPENAI_DEPLOYMENT=gpt-4o-mini</div>
+                  <div>NEXT_PUBLIC_AZURE_OPENAI_API_VERSION=2024-08-01-preview</div>
                 </div>
               </div>
 
@@ -1001,6 +943,21 @@ Daimler Truck Repossession Team`;
                 Data
               </button>
               <button
+                onClick={() => setActiveTab('insights')}
+                className={`px-4 py-3 text-sm font-medium border-b-2 relative ${
+                  activeTab === 'insights'
+                    ? 'border-purple-600 text-purple-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                AI Insights
+                {aiInsights.length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                    {aiInsights.length}
+                  </span>
+                )}
+              </button>
+              <button
                 onClick={() => setActiveTab('actions')}
                 className={`px-4 py-3 text-sm font-medium border-b-2 ${
                   activeTab === 'actions'
@@ -1040,7 +997,7 @@ Daimler Truck Repossession Team`;
                       <span className="text-lg">🇲🇽</span>
                       <span className="font-medium">Mexico Operations</span>
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">Trucks & agents overview</div>
+                    <div className="text-xs text-gray-500 mt-1">Trucks &amp; agents overview</div>
                   </button>
                   <button
                     onClick={() => setInput("Show me all trucks in Germany")}
@@ -1149,6 +1106,148 @@ Daimler Truck Repossession Team`;
               </div>
             )}
 
+            {activeTab === 'insights' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-gray-900 flex items-center space-x-2">
+                    <Brain className="w-4 h-4 text-purple-600" />
+                    <span>AI Insights</span>
+                  </h3>
+                  {isAiThinking && (
+                    <div className="flex items-center space-x-2 text-sm text-gray-500">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Analyzing...</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <Brain className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-medium">Proactive Mode</span>
+                  </div>
+                  <button
+                    onClick={() => setProactiveMode(!proactiveMode)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      proactiveMode ? 'bg-blue-600' : 'bg-gray-200'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        proactiveMode ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {aiInsights.length === 0 && !isAiThinking && (
+                  <div className="text-center py-8">
+                    <Brain className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-sm text-gray-500">No AI insights yet</p>
+                    <p className="text-xs text-gray-400 mt-1">Load vehicle data to see AI analysis</p>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  {aiInsights.map((insight) => (
+                    <div key={insight.id} className={`p-3 rounded-lg border-l-4 ${
+                      insight.type === 'alert' ? 'border-red-500 bg-red-50' :
+                      insight.type === 'prediction' ? 'border-blue-500 bg-blue-50' :
+                      insight.type === 'optimization' ? 'border-green-500 bg-green-50' :
+                      'border-purple-500 bg-purple-50'
+                    }`}>
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center space-x-2">
+                          {insight.type === 'alert' && <AlertTriangle className="w-4 h-4 text-red-600" />}
+                          {insight.type === 'prediction' && <TrendingUp className="w-4 h-4 text-blue-600" />}
+                          {insight.type === 'optimization' && <Target className="w-4 h-4 text-green-600" />}
+                          {insight.type === 'recommendation' && <Star className="w-4 h-4 text-purple-600" />}
+                          <span className={`text-xs font-medium uppercase tracking-wide ${
+                            insight.type === 'alert' ? 'text-red-600' :
+                            insight.type === 'prediction' ? 'text-blue-600' :
+                            insight.type === 'optimization' ? 'text-green-600' :
+                            'text-purple-600'
+                          }`}>
+                            {insight.type}
+                          </span>
+                        </div>
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          insight.impact === 'high' ? 'bg-red-100 text-red-700' :
+                          insight.impact === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {insight.impact} impact
+                        </span>
+                      </div>
+                      
+                      <h4 className="font-semibold text-gray-900 mb-1 text-sm">{insight.title}</h4>
+                      <p className="text-xs text-gray-600 mb-2">{insight.description}</p>
+                      
+                      <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                        <span>Confidence: {insight.confidence}%</span>
+                        <span>{insight.timestamp.toLocaleTimeString()}</span>
+                      </div>
+                      
+                      {insight.action && (
+                        <button
+                          onClick={() => executeAutoAction(insight.action!)}
+                          className={`w-full text-left px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                            insight.type === 'alert' ? 'bg-red-600 text-white hover:bg-red-700' :
+                            insight.type === 'prediction' ? 'bg-blue-600 text-white hover:bg-blue-700' :
+                            insight.type === 'optimization' ? 'bg-green-600 text-white hover:bg-green-700' :
+                            'bg-purple-600 text-white hover:bg-purple-700'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <Zap className="w-3 h-3" />
+                            <span>{insight.action}</span>
+                          </div>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Auto Actions Status */}
+                {autoActions.length > 0 && (
+                  <div className="border-t border-gray-200 pt-4">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-2 flex items-center space-x-2">
+                      <Zap className="w-4 h-4 text-orange-600" />
+                      <span>Automated Actions</span>
+                    </h4>
+                    <div className="space-y-2">
+                      {autoActions.slice(0, 5).map((action) => (
+                        <div key={action.id} className="p-2 bg-gray-50 rounded text-xs">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-medium text-gray-900">{action.name}</span>
+                            <span className={`px-2 py-1 rounded text-xs ${
+                              action.status === 'executing' ? 'bg-blue-100 text-blue-700' :
+                              action.status === 'completed' ? 'bg-green-100 text-green-700' :
+                              action.status === 'failed' ? 'bg-red-100 text-red-700' :
+                              'bg-gray-100 text-gray-700'
+                            }`}>
+                              {action.status}
+                            </span>
+                          </div>
+                          {action.status === 'executing' && (
+                            <div className="w-full bg-gray-200 rounded-full h-1.5 mb-1">
+                              <div 
+                                className="bg-blue-600 h-1.5 rounded-full transition-all duration-500"
+                                style={{ width: `${action.progress}%` }}
+                              ></div>
+                            </div>
+                          )}
+                          {action.result && (
+                            <p className="text-gray-600 mt-1">{action.result}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {activeTab === 'actions' && (
               <div className="space-y-4">
                 <div>
@@ -1159,7 +1258,7 @@ Daimler Truck Repossession Team`;
                       className="w-full text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-sm"
                     >
                       <div className="font-medium">Clear Chat</div>
-                      <div className="text-xs text-gray-500">Reset conversation & data</div>
+                      <div className="text-xs text-gray-500">Reset conversation &amp; data</div>
                     </button>
                     <button 
                       onClick={toggleSpeech}
@@ -1254,7 +1353,7 @@ Daimler Truck Repossession Team`;
                 <p className="text-gray-500 mb-4">Ask about Daimler trucks in skip loss status</p>
                 <div className="inline-flex items-center space-x-2 text-sm text-gray-400">
                   <span>Try:</span>
-                  <span className="bg-white px-2 py-1 rounded border">"Show me trucks in Brazil"</span>
+                  <span className="bg-white px-2 py-1 rounded border">&quot;Show me trucks in Brazil&quot;</span>
                 </div>
               </div>
             )}
@@ -1363,7 +1462,7 @@ Daimler Truck Repossession Team`;
                       </div>
                       {interimTranscript && (
                         <div className="text-blue-600 italic">
-                          Hearing: "{interimTranscript}"
+                          Hearing: &quot;{interimTranscript}&quot;
                         </div>
                       )}
                       {!interimTranscript && isListening && (

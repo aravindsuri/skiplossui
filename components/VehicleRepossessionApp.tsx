@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Send, Truck, Users, Mail, MapPin, Phone, Star, Loader2, Settings, Video, MoreHorizontal, Plus, Search, Bell, Grid3X3, Trash2, Mic, MicOff, Volume2, VolumeX, Zap, Brain, TrendingUp, AlertTriangle, Target } from 'lucide-react';
 
 // Types

@@ -800,6 +800,120 @@ Daimler Truck Repossession Team`;
     }, 3000);
   };
 
+  const exportToCSV = (dataType: 'vehicles' | 'agents' | 'both', filename?: string) => {
+    try {
+      let csvContent = '';
+      
+      if (dataType === 'vehicles' || dataType === 'both') {
+        if (vehicles.length > 0) {
+          // CSV header for vehicles
+          csvContent += 'Row,VIN,Make,Model,Year,Customer ID,Address,Country,Region,Google Maps Link,Export Date,Export Time\n';
+          
+          // CSV data for vehicles
+          vehicles.forEach((vehicle, index) => {
+            const row = [
+              index + 1,
+              vehicle.VIN,
+              vehicle.Make,
+              vehicle.Model,
+              vehicle.Year,
+              vehicle.CustomerID,
+              vehicle.Address,
+              vehicle.Country || 'Unknown',
+              vehicle.Region || 'Unknown',
+              vehicle.GoogleMapsLink || `https://www.google.com/maps/search/${encodeURIComponent(vehicle.Address)}`,
+              new Date().toLocaleDateString(),
+              new Date().toLocaleTimeString()
+            ].map(field => `"${field}"`).join(',');
+            
+            csvContent += row + '\n';
+          });
+        }
+      }
+
+      if (dataType === 'agents' || dataType === 'both') {
+        if (agents.length > 0) {
+          // Add separator if both types
+          if (dataType === 'both' && vehicles.length > 0) {
+            csvContent += '\n';
+          }
+          
+          // CSV header for agents
+          csvContent += 'Row,Agent ID,Name,Phone,Email,Region,Specialty,Country,Export Date,Export Time\n';
+          
+          // CSV data for agents
+          agents.forEach((agent, index) => {
+            const row = [
+              index + 1,
+              agent.AgentID,
+              agent.Name,
+              agent.Phone,
+              agent.Email,
+              agent.Region,
+              agent.Specialty || 'General',
+              agent.Country || 'Unknown',
+              new Date().toLocaleDateString(),
+              new Date().toLocaleTimeString()
+            ].map(field => `"${field}"`).join(',');
+            
+            csvContent += row + '\n';
+          });
+        }
+      }
+
+      // Create and download the file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename || `Daimler_${dataType}_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      // Add success message to chat
+      const successMessage: Message = {
+        role: 'assistant',
+        content: `✅ CSV export completed successfully!\n\nFile: ${filename || `Daimler_${dataType}_${new Date().toISOString().slice(0, 10)}.csv`}\n\nExported ${dataType === 'both' ? vehicles.length + agents.length : dataType === 'vehicles' ? vehicles.length : agents.length} records.`,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, successMessage]);
+
+      return true;
+    } catch (error) {
+      console.error('Export error:', error);
+      
+      // Add error message to chat
+      const errorMessage: Message = {
+        role: 'assistant',
+        content: `❌ Export failed: ${error instanceof Error ? error.message : 'Unknown error occurred'}`,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+      
+      return false;
+    }
+  };
+
+  const handleExportClick = () => {
+    if (vehicles.length === 0 && agents.length === 0) {
+      const noDataMessage: Message = {
+        role: 'assistant',
+        content: '❌ No data available to export. Please load vehicle or agent data first.',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, noDataMessage]);
+      return;
+    }
+
+    const dataType: 'vehicles' | 'agents' | 'both' = 
+      vehicles.length > 0 && agents.length > 0 ? 'both' :
+      vehicles.length > 0 ? 'vehicles' : 'agents';
+
+    exportToCSV(dataType);
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
       {/* Teams-style Top Bar */}
@@ -1271,11 +1385,10 @@ Daimler Truck Repossession Team`;
                       <div className="font-medium">{isListening ? 'Stop' : 'Start'} Voice Input</div>
                       <div className="text-xs text-gray-500">Use speech-to-text input</div>
                     </button>
-                    <button className="w-full text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-sm">
-                      <div className="font-medium">Generate Report</div>
-                      <div className="text-xs text-gray-500">Create summary report</div>
-                    </button>
-                    <button className="w-full text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-sm">
+                    <button 
+                      onClick={handleExportClick}
+                      className="w-full text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-sm"
+                    >
                       <div className="font-medium">Export Data</div>
                       <div className="text-xs text-gray-500">Download current dataset</div>
                     </button>
@@ -1488,7 +1601,10 @@ Daimler Truck Repossession Team`;
                     <Truck className="w-5 h-5 text-purple-600" />
                     <span>Daimler Trucks in Skip Loss Status</span>
                   </h2>
-                  <button className="text-sm text-purple-600 hover:text-purple-700 font-medium">
+                  <button 
+                    onClick={handleExportClick}
+                    className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+                  >
                     Export All
                   </button>
                 </div>
